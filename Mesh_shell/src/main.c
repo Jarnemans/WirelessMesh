@@ -41,6 +41,11 @@ static struct {
     struct k_work_delayable work;
 } onoff;
 
+/* Forward declaration */
+static int gen_onoff_status(const struct bt_mesh_model *model,
+                            struct bt_mesh_msg_ctx *ctx,
+                            struct net_buf_simple *buf);
+
 /* Health server callbacks */
 static const struct bt_mesh_health_srv_cb health_cb = {
     .attn_on = NULL,
@@ -51,7 +56,13 @@ static struct bt_mesh_health_srv health_srv = {
     .cb = &health_cb,
 };
 
-/* OnOff model operations */
+/* OnOff Client Model operations */
+static const struct bt_mesh_model_op gen_onoff_cli_op[] = {
+    { OP_ONOFF_STATUS, BT_MESH_LEN_MIN(1), gen_onoff_status },
+    BT_MESH_MODEL_OP_END,
+};
+
+/* OnOff Server Model operations */
 static int gen_onoff_get(const struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx, struct net_buf_simple *buf) {
     BT_MESH_MODEL_BUF_DEFINE(rsp, OP_ONOFF_STATUS, 1);
     bt_mesh_model_msg_init(&rsp, OP_ONOFF_STATUS);
@@ -82,12 +93,13 @@ static const struct bt_mesh_model_op gen_onoff_srv_op[] = {
     BT_MESH_MODEL_OP_END,
 };
 
-/* Mesh model definitions */
-static const struct bt_mesh_model root_models[] = {
+/* Combined Mesh model definitions */
+static struct bt_mesh_model root_models[] = {
     BT_MESH_MODEL_CFG_SRV,
     BT_MESH_MODEL_CFG_CLI(&cfg_cli),
     BT_MESH_MODEL_HEALTH_SRV(&health_srv, &health_pub),
     BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_SRV, gen_onoff_srv_op, NULL, &onoff),
+    BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_CLI, gen_onoff_cli_op, NULL, NULL),
 };
 
 static const struct bt_mesh_elem elements[] = {
@@ -101,7 +113,7 @@ static const struct bt_mesh_comp comp = {
 };
 
 /* Provisioning configuration */
-static uint8_t dev_uuid[16] = { 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66,
+static uint8_t dev_uuid[16] = { 0xdc, 0xdc, 0xdc, 0xaa, 0x99, 0x88, 0x77, 0x66,
                                 0x55, 0x44, 0x33, 0x22, 0x11, 0x00, 0x00, 0x01 };
 
 static void prov_complete(uint16_t net_idx, uint16_t addr) {
@@ -143,6 +155,15 @@ static void bt_ready(int err) {
     printk("Mesh initialized\n");
 }
 
+/* OnOff Client Callback */
+static int gen_onoff_status(const struct bt_mesh_model *model,
+                            struct bt_mesh_msg_ctx *ctx,
+                            struct net_buf_simple *buf) {
+    uint8_t present = net_buf_simple_pull_u8(buf);
+    printk("Received OnOff status: %s\n", present ? "on" : "off");
+    return 0;
+}
+
 /* Main entry point */
 int main(void) {
     int err;
@@ -160,9 +181,6 @@ int main(void) {
     if (err) {
         printk("Bluetooth init failed (err %d)\n", err);
     }
-
-    printk("Running mesh init...\n");
-    err = bt_mesh_init(&prov, &comp);
 
     return 0;
 }
