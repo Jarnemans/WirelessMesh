@@ -41,7 +41,8 @@ static struct {
     struct k_work_delayable work;
 } onoff;
 
-/* Forward declaration */
+/* Forward declarations */
+static int send_onoff_message(bool state);
 static int gen_onoff_status(const struct bt_mesh_model *model,
                             struct bt_mesh_msg_ctx *ctx,
                             struct net_buf_simple *buf);
@@ -67,6 +68,7 @@ static int gen_onoff_get(const struct bt_mesh_model *model, struct bt_mesh_msg_c
     BT_MESH_MODEL_BUF_DEFINE(rsp, OP_ONOFF_STATUS, 1);
     bt_mesh_model_msg_init(&rsp, OP_ONOFF_STATUS);
     net_buf_simple_add_u8(&rsp, onoff.val);
+    bt_mesh_model_send(model, ctx, &rsp, NULL, NULL);
     return bt_mesh_model_send(model, ctx, &rsp, NULL, NULL);
 }
 
@@ -76,6 +78,9 @@ static int gen_onoff_set_unack(const struct bt_mesh_model *model, struct bt_mesh
         onoff.val = val;
         printk("LED set to: %s\n", val ? "on" : "off");
         gpio_pin_set(led_dev, LED0_PIN, val);
+
+        // Send the updated state to the mesh network
+        send_onoff_message(val);
     }
     return 0;
 }
@@ -113,7 +118,7 @@ static const struct bt_mesh_comp comp = {
 };
 
 /* Provisioning configuration */
-static uint8_t dev_uuid[16] = { 0xdc, 0xdc, 0xdc, 0xaa, 0x99, 0x88, 0x77, 0x66,
+static uint8_t dev_uuid[16] = { 0xc1, 0xdd, 0xdc, 0xaa, 0x99, 0x88, 0x77, 0x66,
                                 0x55, 0x44, 0x33, 0x22, 0x11, 0x00, 0x00, 0x01 };
 
 static void prov_complete(uint16_t net_idx, uint16_t addr) {
@@ -159,9 +164,33 @@ static void bt_ready(int err) {
 static int gen_onoff_status(const struct bt_mesh_model *model,
                             struct bt_mesh_msg_ctx *ctx,
                             struct net_buf_simple *buf) {
-    uint8_t present = net_buf_simple_pull_u8(buf);
-    printk("Received OnOff status: %s\n", present ? "on" : "off");
+    printk("Message details - Addr: 0x%04x, AppIdx: %d, TTL: %d\n",
+           ctx->addr, ctx->app_idx, ctx->send_ttl);
+    for (size_t i = 0; i < buf->len; i++) {
+        printk("%02x ", buf->data[i]);
+    }
+    printk("\n");
     return 0;
+}
+
+static int send_onoff_message(bool state) {
+    static uint8_t tid; // Transaction Identifier
+    struct bt_mesh_msg_ctx ctx = {
+        .app_idx = 0, // Use the first bound application key
+        .addr = BT_MESH_ADDR_ALL_NODES, // Broadcast to all nodes
+        .send_ttl = BT_MESH_TTL_DEFAULT,
+    };
+    BT_MESH_MODEL_BUF_DEFINE(msg, OP_ONOFF_SET, 4); // Change OP code to OP_ONOFF_SET
+    bt_mesh_model_msg_init(&msg, OP_ONOFF_SET);
+    net_buf_simple_add_u8(&msg, state); // LED state
+    net_buf_simple_add_u8(&msg, tid++); // Increment TID for each message
+
+    printk("Sending OnOff Set: %s\n", state ? "on" : "off");
+    int err = bt_mesh_model_send(&root_models[4], &ctx, &msg, NULL, NULL);
+    if (err) {
+        printk("Failed to send message (err %d)\n", err);
+    }
+    return err;
 }
 
 /* Main entry point */
