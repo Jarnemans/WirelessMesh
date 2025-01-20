@@ -27,11 +27,14 @@ DialogSender::DialogSender(QWidget *parent) :
     m_trafficLabel(new QLabel(tr("No traffic."))),
     m_statusLabel(new QLabel(tr("Status: Not running."))),
     m_runButton(new QPushButton(tr("Start"))),
-    m_sendAdvertise(new QPushButton(tr("Send advertise"))),
+    m_sendAdvertise(new QPushButton(tr("Initialize provisioner"))),
     m_addressListWidget(new QListWidget), // New list widget
-    m_turnOnAllLedsButton(new QPushButton(tr("Turn On All LEDs")))
+    m_turnOnAllLedsButton(new QPushButton(tr("Turn On All LEDs"))),
+    m_nodeDetailsTextBox(new QTextEdit)
+
 {
     // Set up m_trafficLabel to support word wrapping
+    m_nodeDetailsTextBox->setReadOnly(true); // Make it read-only
     m_trafficLabel->setWordWrap(true);
 
     // Create a QScrollArea for m_trafficLabel
@@ -64,6 +67,9 @@ DialogSender::DialogSender(QWidget *parent) :
     mainLayout->addWidget(new QLabel(tr("Received Addresses:")), 7, 0, 1, 5); // Label for the list
     mainLayout->addWidget(m_addressListWidget, 8, 0, 1, 5); // List widget
     mainLayout->addWidget(m_turnOnAllLedsButton, 9, 0, 1, 5);
+    mainLayout->addWidget(new QLabel(tr("Node Details:")), 10, 0, 1, 5);
+    mainLayout->addWidget(m_nodeDetailsTextBox, 11, 0, 1, 5);
+
 
     setLayout(mainLayout);
     setWindowTitle(tr("Sender"));
@@ -130,7 +136,8 @@ void DialogSender::sendAdvertisement()
         "mesh reset-local\n",
         "mesh prov uuid deadbeaf\n",
         "mesh cdb create\n",
-        "mesh prov local 0 0x0001\n"
+        "mesh prov local 0 0x0001\n",
+        "mesh cdb app-key-add 0 0\n"
     };
     //  "mesh prov local 0 0x0001\n"
 
@@ -178,43 +185,52 @@ void DialogSender::sendRequest()
 
 void DialogSender::readResponse()
 {
+    // Wait until there's enough data to read
+    if (!m_serial.waitForReadyRead(50)) {  // Wait up to 50ms for data
+        qDebug() << "Timeout waiting for data.";
+        return;
+    }
+
     QByteArray newData = m_serial.readAll();
     qDebug() << "Data received:" << newData;
+
+    // Add the new data to the existing response buffer
     m_response.append(newData);
 
-    // Parsing incoming data
+    // Convert the byte array to a string for easier processing
     QString responseString = QString::fromUtf8(m_response);
-    QStringList lines = responseString.split('\n', Qt::SkipEmptyParts);
 
-    for (const QString &line : lines) {
-        if (line.contains("Received message from") || line.contains("Address:") || line.contains("Addr:")) {
-            // Extract address and value from the line
-            QRegularExpression regex(R"((?:Received message from|Address:)\s?\(?0x[0-9A-Fa-f]+\)?:?.*\s?(\d+))");
+    // Check if the response is non-empty
+    if (!responseString.isEmpty()) {
+        // Split the response into lines
+        QStringList lines = responseString.split('\n', Qt::SkipEmptyParts);
 
-            QRegularExpressionMatch match = regex.match(line);
-            if (match.hasMatch()) {
-                QString address = match.captured(1); // Extract address
-                QString value = match.captured(2);   // Extract value
+        // Update the traffic label with the received traffic
+        m_trafficLabel->setText(tr("Traffic (Live):\n%1").arg(responseString));
 
-                qDebug() << "Address:" << address << "Value:" << value;
+        // Process the lines for any addresses
+        for (const QString &line : lines) {
+            if (line.contains("Received message from") || line.contains("address") || line.contains("Addr:")) {
+                // Extract address and value from the line
+                QRegularExpression regex(R"((?:Received message from|address|Addr:)\s?0x[0-9A-Fa-f]+)");
+                QRegularExpressionMatch match = regex.match(line);
+                if (match.hasMatch()) {
+                    QString address = match.captured(0); // Capture the full address (e.g., "0x12345")
+                    qDebug() << "Address:" << address;
 
-                // Adjust LED status based on the value
-                if (value == "255") {
-                    setLedStatus(address, true); // Turn LED on
-                } else if (value == "1") {
-                    setLedStatus(address, false); // Turn LED off
-                }
-
-                // Add the address to the list widget if it doesn't exist
-                if (m_addressListWidget->findItems(address, Qt::MatchExactly).isEmpty()) {
-                    m_addressListWidget->addItem(address);
+                    // Add the address to the list widget if it doesn't already exist
+                    if (m_addressListWidget->findItems(address, Qt::MatchExactly).isEmpty()) {
+                        m_addressListWidget->addItem(address);
+                    }
                 }
             }
         }
     }
 
-    m_trafficLabel->setText(tr("Traffic (Live):\n%1").arg(responseString));
+    // Reset the buffer to collect the next response
+    m_response.clear();
 }
+
 
 
 void DialogSender::setLedStatus(const QString &address, bool isOn)
@@ -305,18 +321,40 @@ void DialogSender::onAddressDoubleClicked(QListWidgetItem *item)
     QString address = item->text(); // Get the selected address
     qDebug() << "Double-clicked on address:" << address;
 
-    // Send commands to fetch information
-    QStringList commands = {
-        QString("mesh target dst %1\n").arg(address),
-        "mesh models cfg get-comp\n"
-    };
+    // Command to fetch UUID
+    QString uuidCommand = "mesh prov uuid\n";
 
-    for (const QString &command : commands) {
-        m_serial.write(command.toUtf8());
-        m_serial.waitForBytesWritten(100);
-        QThread::msleep(100); // Add delay between commands
-    }
+    // Clear previous node details
+    m_nodeDetailsTextBox->clear();
 
-    m_statusLabel->setText(tr("Fetching information for address %1...").arg(address));
+    // Display address immediately
+    m_nodeDetailsTextBox->append(tr("Address: %1").arg(address));
+
+    // Send command to fetch UUID
+    m_serial.write(uuidCommand.toUtf8());
+    m_serial.waitForBytesWritten(100);
+
+    // Handle UUID response
+    connect(&m_serial, &QSerialPort::readyRead, this, [=]() {
+        QByteArray data = m_serial.readAll();
+        QString response = QString::fromUtf8(data).trimmed(); // Handle raw response
+        qDebug() << "Received UUID response:" << response;
+
+        // Extract UUID from the response
+        QRegularExpression uuidRegex(R"(UUID:\s*([0-9a-fA-F\-]+))");
+        QRegularExpressionMatch match = uuidRegex.match(response);
+        if (match.hasMatch()) {
+            QString uuid = match.captured(1); // Extract UUID
+            m_nodeDetailsTextBox->append(tr("UUID: %1").arg(uuid));
+        } else {
+            m_nodeDetailsTextBox->append(tr("UUID: Not found in response."));
+        }
+
+        // Disconnect this temporary handler
+        disconnect(&m_serial, &QSerialPort::readyRead, nullptr, nullptr);
+    });
+
+    m_statusLabel->setText(tr("Fetching UUID for address %1...").arg(address));
 }
+
 
