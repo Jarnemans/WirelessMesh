@@ -7,6 +7,8 @@
 #include <qlabel.h>
 #include <qlistwidget.h>
 #include <qprocess.h>
+#include <qpushbutton.h>
+#include <qtextedit.h>
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -32,11 +34,14 @@ private slots:
     void openSerialPort(int);
     void turnOnAllLeds();
     void onAddressDoubleClicked(QListWidgetItem *item);
+    void onRefreshClicked();
+    void handleBeaconResponse();
 
 private:
     void setControlsEnabled(bool enable);
     void processError(const QString &error);
     void setLedStatus(const QString&, bool);
+
 
 private:
     int m_transactionCount = 0;
@@ -55,6 +60,11 @@ private:
     QLabel *m_led3Label = nullptr;
     QListWidget *m_addressListWidget;
     QPushButton *m_turnOnAllLedsButton;
+    QTextEdit *m_nodeDetailsTextBox; // To display node details
+    QByteArray m_currentResponse;
+    QPushButton *m_refreshButton = nullptr;
+
+
 
     QSerialPort m_serial;
     QByteArray m_response;

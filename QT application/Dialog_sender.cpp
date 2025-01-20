@@ -30,7 +30,8 @@ DialogSender::DialogSender(QWidget *parent) :
     m_sendAdvertise(new QPushButton(tr("Initialize provisioner"))),
     m_addressListWidget(new QListWidget), // New list widget
     m_turnOnAllLedsButton(new QPushButton(tr("Turn On All LEDs"))),
-    m_nodeDetailsTextBox(new QTextEdit)
+    m_nodeDetailsTextBox(new QTextEdit),
+    m_refreshButton(new QPushButton(tr("Refresh")))
 
 {
     // Set up m_trafficLabel to support word wrapping
@@ -69,6 +70,7 @@ DialogSender::DialogSender(QWidget *parent) :
     mainLayout->addWidget(m_turnOnAllLedsButton, 9, 0, 1, 5);
     mainLayout->addWidget(new QLabel(tr("Node Details:")), 10, 0, 1, 5);
     mainLayout->addWidget(m_nodeDetailsTextBox, 11, 0, 1, 5);
+    mainLayout->addWidget(m_refreshButton, 0, 3);
 
 
     setLayout(mainLayout);
@@ -84,6 +86,7 @@ DialogSender::DialogSender(QWidget *parent) :
     connect(m_turnOnAllLedsButton, &QPushButton::clicked, this, &DialogSender::turnOnAllLeds);
     connect(m_addressListWidget, &QListWidget::itemDoubleClicked, this, &DialogSender::onAddressDoubleClicked);
     connect(m_serialPortComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &DialogSender::openSerialPort);
+    connect(m_refreshButton, &QPushButton::clicked, this, &DialogSender::onRefreshClicked);
 
     initializeSerialPort();
 }
@@ -357,4 +360,59 @@ void DialogSender::onAddressDoubleClicked(QListWidgetItem *item)
     m_statusLabel->setText(tr("Fetching UUID for address %1...").arg(address));
 }
 
+void DialogSender::onRefreshClicked()
+{
+    if (!m_serial.isOpen()) {
+        m_statusLabel->setText(tr("Status: Serial port not open."));
+        return;
+    }
 
+    // Send the "mesh prov beacon-listen on" command to discover nodes
+    QString beaconListenCommand = "mesh prov beacon-listen on\n";
+    m_serial.write(beaconListenCommand.toUtf8());
+    m_serial.waitForBytesWritten(100);
+
+    // Wait for the response and parse it
+    connect(&m_serial, &QSerialPort::readyRead, this, &DialogSender::handleBeaconResponse);
+    m_statusLabel->setText(tr("Refreshing and discovering nodes..."));
+}
+
+void DialogSender::handleBeaconResponse()
+{
+
+    m_serial.waitForReadyRead(50);
+    QByteArray data = m_serial.readAll();
+    QString response = QString::fromUtf8(data).trimmed();
+
+    qDebug() << "Received beacon response:" << response;
+
+    // Regular expression to extract UUID from the response
+    QRegularExpression uuidRegex(R"(PB-GATT UUID\s([0-9a-fA-F]{8}[0-9a-fA-F]{24}))");
+    QRegularExpressionMatch match = uuidRegex.match(response);
+
+    if (match.hasMatch()) {
+        QString uuid = match.captured(1);  // Extract the UUID
+        qDebug() << "Found UUID:" << uuid;
+
+        // Assuming a unique unicast address is available (replace with actual logic to obtain it)
+        QString uniqueAddress = "0x123456"; // Replace with the actual unique address for the node
+
+        // Provision the node using the remote GATT command
+        QString provisionCommand = QString("mesh prov remote-gatt %1 0 %2 30\n").arg(uuid).arg(uniqueAddress);
+        m_serial.write(provisionCommand.toUtf8());
+        m_serial.waitForBytesWritten(100);
+
+        // Add the provisioned address to the list if it's not already there
+        if (m_addressListWidget->findItems(uniqueAddress, Qt::MatchExactly).isEmpty()) {
+            m_addressListWidget->addItem(uniqueAddress);
+        }
+
+        m_statusLabel->setText(tr("Node provisioned with UUID %1.").arg(uuid));
+    } else {
+        m_statusLabel->setText(tr("No nodes discovered."));
+    }
+   // m_serial.write("mesh prov beacon-listen off\n");
+   // m_serial.waitForBytesWritten(100);
+    // Disconnect the handler after processing the response
+    disconnect(&m_serial, &QSerialPort::readyRead, nullptr, nullptr);
+}
