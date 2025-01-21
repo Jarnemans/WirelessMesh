@@ -9,6 +9,7 @@
 #include <qprocess.h>
 #include <qpushbutton.h>
 #include <qtextedit.h>
+#include "NODE.h"
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -63,7 +64,8 @@ private:
     QTextEdit *m_nodeDetailsTextBox; // To display node details
     QByteArray m_currentResponse;
     QPushButton *m_refreshButton = nullptr;
-
+    QList<Node> m_nodes;
+    std::map<QString, Node> m_nodeMap;
 
 
     QSerialPort m_serial;
