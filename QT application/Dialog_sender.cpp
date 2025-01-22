@@ -364,14 +364,17 @@ void DialogSender::onRefreshClicked()
     m_serial.write(beaconListenCommand.toUtf8());
     m_serial.waitForBytesWritten(100);
 
-    // Wait for the response and parse it
-    connect(&m_serial, &QSerialPort::readyRead, this, &DialogSender::handleBeaconResponse);
     m_statusLabel->setText(tr("Refreshing and discovering nodes..."));
+    // Wait for the response and parse it
+
+    QTimer::singleShot(200, this, [this]() {
+        connect(&m_serial, &QSerialPort::readyRead, this, &DialogSender::handleBeaconResponse, Qt::UniqueConnection);
+    });
 }
+
 
 void DialogSender::handleBeaconResponse()
 {
-    m_serial.waitForReadyRead(250);
     QByteArray data = m_serial.readAll();
     QString response = QString::fromUtf8(data).trimmed();
 
@@ -385,6 +388,13 @@ void DialogSender::handleBeaconResponse()
         QString uuid = match.captured(1);  // Extract the UUID
         qDebug() << "Found UUID:" << uuid;
 
+        // Check if UUID is already provisioned
+        if (m_provisionedUUIDs.contains(uuid)) {
+            qDebug() << "UUID already provisioned. Skipping...";
+            m_statusLabel->setText(tr("Node with UUID %1 is already provisioned.").arg(uuid));
+            return; // Skip further processing for this UUID
+        }
+
         // Assign the next available unicast address
         QString uniqueAddress = QString("0x%1").arg(m_nextUnicastAddress, 4, 16, QChar('0'));
 
@@ -395,6 +405,9 @@ void DialogSender::handleBeaconResponse()
         QString provisionCommand = QString("mesh prov remote-gatt %1 0 %2 30\n").arg(uuid).arg(uniqueAddress);
         m_serial.write(provisionCommand.toUtf8());
         m_serial.waitForBytesWritten(100);
+
+        // Add the UUID to the provisioned set
+        m_provisionedUUIDs.insert(uuid);
 
         // Check if the address is already in the map
         if (m_nodeMap.find(uniqueAddress) == m_nodeMap.end()) {
@@ -418,7 +431,8 @@ void DialogSender::handleBeaconResponse()
     // m_serial.waitForBytesWritten(100);
 
     // Disconnect the handler after processing the response
-    disconnect(&m_serial, &QSerialPort::readyRead, nullptr, nullptr);
+   // disconnect(&m_serial, &QSerialPort::readyRead, nullptr, nullptr);
 }
+
 
 
