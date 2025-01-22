@@ -136,45 +136,45 @@ void DialogSender::sendAdvertisement()
 {
 
     if(!Init){
-    if (!m_serial.isOpen()) {
-        m_statusLabel->setText(tr("Status: Serial port not open."));
-        return;
-    }
+        if (!m_serial.isOpen()) {
+            m_statusLabel->setText(tr("Status: Serial port not open."));
+            return;
+        }
 
-    Node node;
-
-
-    QStringList commands = {
-        "mesh init\n",
-        "mesh reset-local\n",
-        "mesh prov uuid deadbeaf\n",
-        "mesh cdb create\n",
-        "mesh prov local 0 0x0001\n",
-        "mesh cdb app-key-add 0 0\n",
-        "mesh target dst 0x1\n",
-        "mesh models cfg appkey add 0 0\n",
-        "mesh models cfg model app-bind 0x1 0 0x1001\n",
-        "mesh models cfg model app-bind 0x1 0 0x1000\n",
-        "mesh models cfg model sub-add 0x1 0xc000 0x1001\n",
-        "mesh models cfg model sub-add 0x1 0xc000 0x1000\n"
-    };
+        Node node;
 
 
-    node.setAddress("0x0001");
-    node.setUuid("deadbeaf");
-    m_addressListWidget->addItem(node.address());
+        QStringList commands = {
+            "mesh init\n",
+            "mesh reset-local\n",
+            "mesh prov uuid deadbeaf\n",
+            "mesh cdb create\n",
+            "mesh prov local 0 0x0001\n",
+            "mesh cdb app-key-add 0 0\n",
+            "mesh target dst 0x1\n",
+            "mesh models cfg appkey add 0 0\n",
+            "mesh models cfg model app-bind 0x1 0 0x1001\n",
+            "mesh models cfg model app-bind 0x1 0 0x1000\n",
+            "mesh models cfg model sub-add 0x1 0xc000 0x1001\n",
+            "mesh models cfg model sub-add 0x1 0xc000 0x1000\n"
+        };
 
-    //  "mesh prov local 0 0x0001\n"
-    m_nodeMap["0x0001"] = node;
-    for (const QString &command : commands) {
-        m_serial.write(command.toUtf8());
-        m_serial.waitForBytesWritten(100);
-        QThread::msleep(100);
-    }
 
-    m_statusLabel->setText(tr("Status: Mesh commands sent."));
-    qDebug() << "Mesh commands sent to dongle.";
-    Init = true;
+        node.setAddress("0x0001");
+        node.setUuid("deadbeaf");
+        m_addressListWidget->addItem(node.address());
+
+        //  "mesh prov local 0 0x0001\n"
+        m_nodeMap["0x0001"] = node;
+        for (const QString &command : commands) {
+            m_serial.write(command.toUtf8());
+            m_serial.waitForBytesWritten(100);
+            QThread::msleep(100);
+        }
+
+        m_statusLabel->setText(tr("Status: Mesh commands sent."));
+        qDebug() << "Mesh commands sent to dongle.";
+        Init = true;
     }
 }
 
@@ -247,9 +247,9 @@ void DialogSender::readResponse()
                     qDebug() << "Address:" << address;
 
                     // Add the address to the list widget if it doesn't already exist
-                  //  if (m_addressListWidget->findItems(address, Qt::MatchExactly).isEmpty()) {
-                   //     m_addressListWidget->addItem(address);
-                  //  }
+                    //  if (m_addressListWidget->findItems(address, Qt::MatchExactly).isEmpty()) {
+                    //     m_addressListWidget->addItem(address);
+                    //  }
                 }
             }
         }
@@ -422,35 +422,35 @@ void DialogSender::handleBeaconResponse()
         m_serial.waitForBytesWritten(100);
 
         QTimer::singleShot(2000, this, [this, uniqueAddress]() {
-        qDebug() << "RAAAAAAHHHHHHHHHHHHHHHHHHHHHH \n\n\n";
-        QString Command1 = QString("mesh target dst %1\n").arg(uniqueAddress);
-        m_serial.write(Command1.toUtf8());
-        m_serial.waitForBytesWritten(100);
-        m_serial.waitForReadyRead(50);
+            qDebug() << "RAAAAAAHHHHHHHHHHHHHHHHHHHHHH \n\n\n";
+            QString Command1 = QString("mesh target dst %1\n").arg(uniqueAddress);
+            m_serial.write(Command1.toUtf8());
+            m_serial.waitForBytesWritten(100);
+            m_serial.waitForReadyRead(50);
 
-        m_serial.write("mesh models cfg appkey add 0 0\n");
-        m_serial.waitForBytesWritten(100);
-        m_serial.waitForReadyRead(50);
+            m_serial.write("mesh models cfg appkey add 0 0\n");
+            m_serial.waitForBytesWritten(100);
+            m_serial.waitForReadyRead(50);
 
-        QString Command2 = QString("mesh models cfg model app-bind %1 0 0x1001\n").arg(uniqueAddress);
-        m_serial.write(Command2.toUtf8());
-        m_serial.waitForBytesWritten(100);
-        m_serial.waitForReadyRead(50);
+            QString Command2 = QString("mesh models cfg model app-bind %1 0 0x1001\n").arg(uniqueAddress);
+            m_serial.write(Command2.toUtf8());
+            m_serial.waitForBytesWritten(100);
+            m_serial.waitForReadyRead(50);
 
-        QString Command3 = QString("mesh models cfg model app-bind %1 0 0x1000\n").arg(uniqueAddress);
-        m_serial.write(Command3.toUtf8());
-        m_serial.waitForBytesWritten(100);
-        m_serial.waitForReadyRead(50);
+            QString Command3 = QString("mesh models cfg model app-bind %1 0 0x1000\n").arg(uniqueAddress);
+            m_serial.write(Command3.toUtf8());
+            m_serial.waitForBytesWritten(100);
+            m_serial.waitForReadyRead(50);
 
-        QString Command4 = QString("mesh models cfg model sub-add %1 0xc000 0x1001\n").arg(uniqueAddress);
-        m_serial.write(Command3.toUtf8());
-        m_serial.waitForBytesWritten(100);
-        m_serial.waitForReadyRead(50);
+            QString Command4 = QString("mesh models cfg model sub-add %1 0xc000 0x1001\n").arg(uniqueAddress);
+            m_serial.write(Command3.toUtf8());
+            m_serial.waitForBytesWritten(100);
+            m_serial.waitForReadyRead(50);
 
-        QString Command5 = QString("mesh models cfg model sub-add %1 0xc000 0x1000\n").arg(uniqueAddress);
-        m_serial.write(Command3.toUtf8());
-        m_serial.waitForBytesWritten(100);
-        m_serial.waitForReadyRead(50);
+            QString Command5 = QString("mesh models cfg model sub-add %1 0xc000 0x1000\n").arg(uniqueAddress);
+            m_serial.write(Command3.toUtf8());
+            m_serial.waitForBytesWritten(100);
+            m_serial.waitForReadyRead(50);
         });
 
         // Add the UUID to the provisioned set
@@ -478,11 +478,11 @@ void DialogSender::handleBeaconResponse()
     }
 
     // Optionally disable beacon listen after processing
-    // m_serial.write("mesh prov beacon-listen off\n");
-    // m_serial.waitForBytesWritten(100);
+    m_serial.write("mesh prov beacon-listen off\n");
+    m_serial.waitForBytesWritten(100);
 
     // Disconnect the handler after processing the response
-    // disconnect(&m_serial, &QSerialPort::readyRead, nullptr, nullptr);
+    disconnect(&m_serial, &QSerialPort::readyRead, nullptr, nullptr);
 }
 
 
