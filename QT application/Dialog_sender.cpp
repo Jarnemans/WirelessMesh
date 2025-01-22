@@ -11,6 +11,8 @@
 #include <QDebug>
 #include <QThread>
 #include <QScrollArea>
+#include <QRegularExpression>
+#include <QRegularExpressionMatch>
 
 #include <QScrollArea>
 
@@ -153,7 +155,7 @@ void DialogSender::sendAdvertisement()
 
 
     node.setAddress("0x0001");
-    node.setUuid("deadbeaf000000000000000000000000");
+    node.setUuid("deadbeaf");
     m_addressListWidget->addItem(node.address());
 
     //  "mesh prov local 0 0x0001\n"
@@ -388,6 +390,12 @@ void DialogSender::handleBeaconResponse()
         QString uuid = match.captured(1);  // Extract the UUID
         qDebug() << "Found UUID:" << uuid;
 
+        // Remove trailing zeros from the UUID
+        uuid = uuid.trimmed();
+        uuid.remove(QRegularExpression("0+$")); // Remove trailing zeros using QRegularExpression
+
+        qDebug() << "UUID after trimming zeros:" << uuid;
+
         // Check if UUID is already provisioned
         if (m_provisionedUUIDs.contains(uuid)) {
             qDebug() << "UUID already provisioned. Skipping...";
@@ -404,7 +412,30 @@ void DialogSender::handleBeaconResponse()
         // Provision the node using the remote GATT command
         QString provisionCommand = QString("mesh prov remote-gatt %1 0 %2 30\n").arg(uuid).arg(uniqueAddress);
         m_serial.write(provisionCommand.toUtf8());
+        qDebug() << "Sending REMOTE GATT";
         m_serial.waitForBytesWritten(100);
+
+        QTimer::singleShot(2000, this, [this, uniqueAddress]() {
+        qDebug() << "RAAAAAAHHHHHHHHHHHHHHHHHHHHHH \n\n\n";
+        QString Command1 = QString("mesh target dst %1\n").arg(uniqueAddress);
+        m_serial.write(Command1.toUtf8());
+        m_serial.waitForBytesWritten(100);
+        m_serial.waitForReadyRead(50);
+
+        m_serial.write("mesh models cfg appkey add 0 0\n");
+        m_serial.waitForBytesWritten(100);
+        m_serial.waitForReadyRead(50);
+
+        QString Command2 = QString("mesh models cfg model app-bind %1 0 0x1001\n").arg(uniqueAddress);
+        m_serial.write(Command2.toUtf8());
+        m_serial.waitForBytesWritten(100);
+        m_serial.waitForReadyRead(50);
+
+        QString Command3 = QString("mesh models cfg model app-bind %1 0 0x1000\n").arg(uniqueAddress);
+        m_serial.write(Command3.toUtf8());
+        m_serial.waitForBytesWritten(100);
+        m_serial.waitForReadyRead(50);
+        });
 
         // Add the UUID to the provisioned set
         m_provisionedUUIDs.insert(uuid);
@@ -422,6 +453,10 @@ void DialogSender::handleBeaconResponse()
         }
 
         m_statusLabel->setText(tr("Node provisioned with UUID %1 at address %2.").arg(uuid).arg(uniqueAddress));
+
+
+
+
     } else {
         m_statusLabel->setText(tr("No nodes discovered."));
     }
@@ -431,8 +466,10 @@ void DialogSender::handleBeaconResponse()
     // m_serial.waitForBytesWritten(100);
 
     // Disconnect the handler after processing the response
-   // disconnect(&m_serial, &QSerialPort::readyRead, nullptr, nullptr);
+    // disconnect(&m_serial, &QSerialPort::readyRead, nullptr, nullptr);
 }
+
+
 
 
 
