@@ -15,6 +15,7 @@
 #include <QScrollArea>
 
 Node nodes(0,0);
+bool Init = false;
 
 // Inside the DialogSender constructor
 DialogSender::DialogSender(QWidget *parent) :
@@ -131,6 +132,8 @@ void DialogSender::initializeSerialPort()
 
 void DialogSender::sendAdvertisement()
 {
+
+    if(!Init){
     if (!m_serial.isOpen()) {
         m_statusLabel->setText(tr("Status: Serial port not open."));
         return;
@@ -147,8 +150,10 @@ void DialogSender::sendAdvertisement()
         "mesh prov local 0 0x0001\n",
         "mesh cdb app-key-add 0 0\n"
     };
+
+
     node.setAddress("0x0001");
-    node.setUuid("deadbeaf");
+    node.setUuid("deadbeaf000000000000000000000000");
     m_addressListWidget->addItem(node.address());
 
     //  "mesh prov local 0 0x0001\n"
@@ -161,6 +166,8 @@ void DialogSender::sendAdvertisement()
 
     m_statusLabel->setText(tr("Status: Mesh commands sent."));
     qDebug() << "Mesh commands sent to dongle.";
+    Init = true;
+    }
 }
 
 void DialogSender::openSerialPort(int index)
@@ -232,9 +239,9 @@ void DialogSender::readResponse()
                     qDebug() << "Address:" << address;
 
                     // Add the address to the list widget if it doesn't already exist
-                    if (m_addressListWidget->findItems(address, Qt::MatchExactly).isEmpty()) {
-                        m_addressListWidget->addItem(address);
-                    }
+                  //  if (m_addressListWidget->findItems(address, Qt::MatchExactly).isEmpty()) {
+                   //     m_addressListWidget->addItem(address);
+                  //  }
                 }
             }
         }
@@ -338,38 +345,9 @@ void DialogSender::onAddressDoubleClicked(QListWidgetItem *item)
     node = m_nodeMap[address];
 
     m_nodeDetailsTextBox->clear();
-    // Command to fetch UUID
-    QString uuidCommand = "mesh prov uuid\n";
-
-    // Clear previous node details
-
-
     // Display address immediately
     m_nodeDetailsTextBox->append(tr("Address: %1").arg(node.address()));
-
-    // Send command to fetch UUID
-    m_serial.write(uuidCommand.toUtf8());
-    m_serial.waitForBytesWritten(100);
-
-    // Handle UUID response
-    connect(&m_serial, &QSerialPort::readyRead, this, [=]() {
-        QByteArray data = m_serial.readAll();
-        QString response = QString::fromUtf8(data).trimmed(); // Handle raw response
-        qDebug() << "Received UUID response:" << response;
-
-        // Extract UUID from the response
-        QRegularExpression uuidRegex(R"(UUID:\s*([0-9a-fA-F\-]+))");
-        QRegularExpressionMatch match = uuidRegex.match(response);
-        if (match.hasMatch()) {
-            QString uuid = match.captured(1); // Extract UUID
-            m_nodeDetailsTextBox->append(tr("UUID: %1").arg(node.uuid()));
-        } else {
-            m_nodeDetailsTextBox->append(tr("UUID: Not found in response."));
-        }
-
-        // Disconnect this temporary handler
-        disconnect(&m_serial, &QSerialPort::readyRead, nullptr, nullptr);
-    });
+    m_nodeDetailsTextBox->append(tr("UUID: %1").arg(node.uuid()));
 
     m_statusLabel->setText(tr("Fetching UUID for address %1...").arg(address));
 }
@@ -393,22 +371,25 @@ void DialogSender::onRefreshClicked()
 
 void DialogSender::handleBeaconResponse()
 {
-    m_serial.waitForReadyRead(50);
+    m_serial.waitForReadyRead(250);
     QByteArray data = m_serial.readAll();
     QString response = QString::fromUtf8(data).trimmed();
 
     qDebug() << "Received beacon response:" << response;
 
     // Regular expression to extract UUID from the response
-    QRegularExpression uuidRegex(R"(PB-GATT UUID\s([0-9a-fA-F]{8}[0-9a-fA-F]{24}))");
+    QRegularExpression uuidRegex(R"(PB-GATT UUID\s([0-9a-fA-F]{32}))");
     QRegularExpressionMatch match = uuidRegex.match(response);
 
     if (match.hasMatch()) {
         QString uuid = match.captured(1);  // Extract the UUID
         qDebug() << "Found UUID:" << uuid;
 
-        // Assuming a unique unicast address is available (replace with actual logic to obtain it)
-        QString uniqueAddress = "0x123456"; // Replace with the actual unique address for the node
+        // Assign the next available unicast address
+        QString uniqueAddress = QString("0x%1").arg(m_nextUnicastAddress, 4, 16, QChar('0'));
+
+        // Increment the address for the next node
+        m_nextUnicastAddress++;
 
         // Provision the node using the remote GATT command
         QString provisionCommand = QString("mesh prov remote-gatt %1 0 %2 30\n").arg(uuid).arg(uniqueAddress);
@@ -427,13 +408,17 @@ void DialogSender::handleBeaconResponse()
             qDebug() << "Node with address" << uniqueAddress << "is already provisioned.";
         }
 
-        m_statusLabel->setText(tr("Node provisioned with UUID %1.").arg(uuid));
+        m_statusLabel->setText(tr("Node provisioned with UUID %1 at address %2.").arg(uuid).arg(uniqueAddress));
     } else {
         m_statusLabel->setText(tr("No nodes discovered."));
     }
 
+    // Optionally disable beacon listen after processing
     // m_serial.write("mesh prov beacon-listen off\n");
     // m_serial.waitForBytesWritten(100);
+
     // Disconnect the handler after processing the response
     disconnect(&m_serial, &QSerialPort::readyRead, nullptr, nullptr);
 }
+
+
