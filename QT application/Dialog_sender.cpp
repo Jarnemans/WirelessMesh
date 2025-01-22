@@ -314,31 +314,42 @@ void DialogSender::turnOnAllLeds()
         return;
     }
 
-    // Placeholder-opdracht om alle LEDs aan te zetten
-    QStringList commands = {
-        "sendto (adress) leds 1\n",
-    };
+    QString Command1 = QString("target dst 0xc000\n");
+            m_serial.write(Command1.toUtf8());
+            m_serial.waitForBytesWritten(100);
+            m_serial.waitForReadyRead(50);
 
-    int itemCount = m_addressListWidget->count(); // Aantal items in de lijst
-    for (int i = 0; i < itemCount; ++i) {
-        // Haal het adres op uit de lijst
-        QListWidgetItem *item = m_addressListWidget->item(i);
-        if (item) {
-            QString address = item->text(); // Het adres uit de lijst
+    QString Command2 = QString("test net-send 82030101\n");
+            m_serial.write(Command2.toUtf8());
+            m_serial.waitForBytesWritten(100);
+            m_serial.waitForReadyRead(50);
+    
 
-            // Voeg het adres in op de plek van "(adress)"
-            for (const QString &command : commands) {
-                QString commandWithAddress = command;
-                commandWithAddress.replace("(adress)", address); // Vervang de placeholder
-                m_serial.write(commandWithAddress.toUtf8());
-                m_serial.waitForBytesWritten(100); // Wacht tot het commando is geschreven
-            }
-        }
-    }
     m_statusLabel->setText(tr("Status: All LEDs turned on."));
     qDebug() << "Command sent to turn on all LEDs.";
 }
 
+void DialogSender::turnOffAllLeds()
+{
+    if (!m_serial.isOpen()) {
+        m_statusLabel->setText(tr("Status: Serial port not open."));
+        return;
+    }
+
+    QString Command1 = QString("target dst 0xc000\n");
+            m_serial.write(Command1.toUtf8());
+            m_serial.waitForBytesWritten(100);
+            m_serial.waitForReadyRead(50);
+
+    QString Command2 = QString("test net-send 82030000\n");
+            m_serial.write(Command2.toUtf8());
+            m_serial.waitForBytesWritten(100);
+            m_serial.waitForReadyRead(50);
+    
+
+    m_statusLabel->setText(tr("Status: All LEDs turned off."));
+    qDebug() << "Command sent to turn off all LEDs.";
+}
 
 void DialogSender::onAddressDoubleClicked(QListWidgetItem *item)
 {
@@ -443,12 +454,12 @@ void DialogSender::handleBeaconResponse()
             m_serial.waitForReadyRead(50);
 
             QString Command4 = QString("mesh models cfg model sub-add %1 0xc000 0x1001\n").arg(uniqueAddress);
-            m_serial.write(Command3.toUtf8());
+            m_serial.write(Command4.toUtf8());
             m_serial.waitForBytesWritten(100);
             m_serial.waitForReadyRead(50);
 
             QString Command5 = QString("mesh models cfg model sub-add %1 0xc000 0x1000\n").arg(uniqueAddress);
-            m_serial.write(Command3.toUtf8());
+            m_serial.write(Command5.toUtf8());
             m_serial.waitForBytesWritten(100);
             m_serial.waitForReadyRead(50);
         });
