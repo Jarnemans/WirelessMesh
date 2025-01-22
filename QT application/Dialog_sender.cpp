@@ -150,7 +150,13 @@ void DialogSender::sendAdvertisement()
         "mesh prov uuid deadbeaf\n",
         "mesh cdb create\n",
         "mesh prov local 0 0x0001\n",
-        "mesh cdb app-key-add 0 0\n"
+        "mesh cdb app-key-add 0 0\n",
+        "mesh target dst 0x1\n",
+        "mesh models cfg appkey add 0 0\n",
+        "mesh models cfg model app-bind 0x1 0 0x1001\n",
+        "mesh models cfg model app-bind 0x1 0 0x1000\n",
+        "mesh models cfg model sub-add 0x1 0xc000 0x1001\n",
+        "mesh models cfg model sub-add 0x1 0xc000 0x1000\n"
     };
 
 
@@ -432,6 +438,16 @@ void DialogSender::handleBeaconResponse()
         m_serial.waitForReadyRead(50);
 
         QString Command3 = QString("mesh models cfg model app-bind %1 0 0x1000\n").arg(uniqueAddress);
+        m_serial.write(Command3.toUtf8());
+        m_serial.waitForBytesWritten(100);
+        m_serial.waitForReadyRead(50);
+
+        QString Command4 = QString("mesh models cfg model sub-add %1 0xc000 0x1001\n").arg(uniqueAddress);
+        m_serial.write(Command3.toUtf8());
+        m_serial.waitForBytesWritten(100);
+        m_serial.waitForReadyRead(50);
+
+        QString Command5 = QString("mesh models cfg model sub-add %1 0xc000 0x1000\n").arg(uniqueAddress);
         m_serial.write(Command3.toUtf8());
         m_serial.waitForBytesWritten(100);
         m_serial.waitForReadyRead(50);
