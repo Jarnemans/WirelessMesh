@@ -35,6 +35,7 @@ DialogSender::DialogSender(QWidget *parent) :
     m_sendAdvertise(new QPushButton(tr("Initialize provisioner"))),
     m_addressListWidget(new QListWidget), // New list widget
     m_turnOnAllLedsButton(new QPushButton(tr("Turn On All LEDs"))),
+    m_turnOffAllLedsButton(new QPushButton(tr("Turn off all LEDs"))),
     m_nodeDetailsTextBox(new QTextEdit),
     m_refreshButton(new QPushButton(tr("Refresh")))
 
@@ -73,8 +74,9 @@ DialogSender::DialogSender(QWidget *parent) :
     mainLayout->addWidget(new QLabel(tr("Received Addresses:")), 7, 0, 1, 5); // Label for the list
     mainLayout->addWidget(m_addressListWidget, 8, 0, 1, 5); // List widget
     mainLayout->addWidget(m_turnOnAllLedsButton, 9, 0, 1, 5);
-    mainLayout->addWidget(new QLabel(tr("Node Details:")), 10, 0, 1, 5);
-    mainLayout->addWidget(m_nodeDetailsTextBox, 11, 0, 1, 5);
+    mainLayout->addWidget(m_turnOffAllLedsButton,10,0,1,5);
+    mainLayout->addWidget(new QLabel(tr("Node Details:")), 11, 0, 1, 5);
+    mainLayout->addWidget(m_nodeDetailsTextBox, 12, 0, 1, 5);
     mainLayout->addWidget(m_refreshButton, 0, 3);
 
 
@@ -89,6 +91,7 @@ DialogSender::DialogSender(QWidget *parent) :
     connect(&m_timer, &QTimer::timeout, this, &DialogSender::processTimeout);
     connect(m_sendAdvertise, &QPushButton::clicked, this, &DialogSender::sendAdvertisement);
     connect(m_turnOnAllLedsButton, &QPushButton::clicked, this, &DialogSender::turnOnAllLeds);
+    connect(m_turnOffAllLedsButton, &QPushButton::clicked, this, &DialogSender::turnOffAllLeds);
     connect(m_addressListWidget, &QListWidget::itemDoubleClicked, this, &DialogSender::onAddressDoubleClicked);
     connect(m_serialPortComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &DialogSender::openSerialPort);
     connect(m_refreshButton, &QPushButton::clicked, this, &DialogSender::onRefreshClicked);
@@ -315,15 +318,15 @@ void DialogSender::turnOnAllLeds()
     }
 
     QString Command1 = QString("target dst 0xc000\n");
-            m_serial.write(Command1.toUtf8());
-            m_serial.waitForBytesWritten(100);
-            m_serial.waitForReadyRead(50);
+    m_serial.write(Command1.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
 
     QString Command2 = QString("test net-send 82030101\n");
-            m_serial.write(Command2.toUtf8());
-            m_serial.waitForBytesWritten(100);
-            m_serial.waitForReadyRead(50);
-    
+    m_serial.write(Command2.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+
 
     m_statusLabel->setText(tr("Status: All LEDs turned on."));
     qDebug() << "Command sent to turn on all LEDs.";
@@ -337,15 +340,15 @@ void DialogSender::turnOffAllLeds()
     }
 
     QString Command1 = QString("target dst 0xc000\n");
-            m_serial.write(Command1.toUtf8());
-            m_serial.waitForBytesWritten(100);
-            m_serial.waitForReadyRead(50);
+    m_serial.write(Command1.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
 
     QString Command2 = QString("test net-send 82030000\n");
-            m_serial.write(Command2.toUtf8());
-            m_serial.waitForBytesWritten(100);
-            m_serial.waitForReadyRead(50);
-    
+    m_serial.write(Command2.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+
 
     m_statusLabel->setText(tr("Status: All LEDs turned off."));
     qDebug() << "Command sent to turn off all LEDs.";
