@@ -9,6 +9,7 @@
 #include <qprocess.h>
 #include <qpushbutton.h>
 #include <qtextedit.h>
+#include <QSet>
 #include "NODE.h"
 
 QT_BEGIN_NAMESPACE
@@ -37,6 +38,9 @@ private slots:
     void onAddressDoubleClicked(QListWidgetItem *item);
     void onRefreshClicked();
     void handleBeaconResponse();
+    void turnOffAllLeds();
+    void SubToNode();
+    void UnSubToNode();
 
 private:
     void setControlsEnabled(bool enable);
@@ -61,11 +65,16 @@ private:
     QLabel *m_led3Label = nullptr;
     QListWidget *m_addressListWidget;
     QPushButton *m_turnOnAllLedsButton;
+    QPushButton *m_turnOffAllLedsButton;
     QTextEdit *m_nodeDetailsTextBox; // To display node details
     QByteArray m_currentResponse;
     QPushButton *m_refreshButton = nullptr;
     QList<Node> m_nodes;
     std::map<QString, Node> m_nodeMap;
+    quint16 m_nextUnicastAddress = 0x0002;
+    QSet<QString> m_provisionedUUIDs;
+    QPushButton *m_subButton;
+    QPushButton *m_unSubButton;
 
 
     QSerialPort m_serial;

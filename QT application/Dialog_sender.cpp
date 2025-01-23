@@ -37,7 +37,9 @@ DialogSender::DialogSender(QWidget *parent) :
     m_turnOnAllLedsButton(new QPushButton(tr("Turn On All LEDs"))),
     m_turnOffAllLedsButton(new QPushButton(tr("Turn off all LEDs"))),
     m_nodeDetailsTextBox(new QTextEdit),
-    m_refreshButton(new QPushButton(tr("Refresh")))
+    m_refreshButton(new QPushButton(tr("Refresh"))),
+    m_subButton(new QPushButton(tr("Subscribe Node"))),
+    m_unSubButton(new QPushButton(tr("Unsubscribe Node")))
 
 {
     // Set up m_trafficLabel to support word wrapping
@@ -65,8 +67,7 @@ DialogSender::DialogSender(QWidget *parent) :
     mainLayout->addWidget(m_waitResponseLabel, 1, 0);
     mainLayout->addWidget(m_waitResponseSpinBox, 1, 1);
     mainLayout->addWidget(m_runButton, 0, 2, 2, 1);
-    mainLayout->addWidget(m_requestLabel, 2, 0);
-    mainLayout->addWidget(m_requestLineEdit, 2, 1, 1, 3);
+    mainLayout->addWidget(m_requestLineEdit, 2, 0, 1, 3);
     mainLayout->addWidget(new QLabel(tr("Traffic:")), 3, 0, 1, 5);
     mainLayout->addWidget(trafficScrollArea, 4, 0, 1, 5); // Replace m_trafficLabel with scrollable area
     mainLayout->addWidget(m_statusLabel, 5, 0, 1, 5);
@@ -78,6 +79,8 @@ DialogSender::DialogSender(QWidget *parent) :
     mainLayout->addWidget(new QLabel(tr("Node Details:")), 11, 0, 1, 5);
     mainLayout->addWidget(m_nodeDetailsTextBox, 12, 0, 1, 5);
     mainLayout->addWidget(m_refreshButton, 0, 3);
+    mainLayout->addWidget(m_subButton, 1, 3);
+    mainLayout->addWidget(m_unSubButton, 2, 3);
 
 
     setLayout(mainLayout);
@@ -95,6 +98,8 @@ DialogSender::DialogSender(QWidget *parent) :
     connect(m_addressListWidget, &QListWidget::itemDoubleClicked, this, &DialogSender::onAddressDoubleClicked);
     connect(m_serialPortComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &DialogSender::openSerialPort);
     connect(m_refreshButton, &QPushButton::clicked, this, &DialogSender::onRefreshClicked);
+    connect(m_subButton, &QPushButton::clicked, this, &DialogSender::SubToNode);
+    connect(m_unSubButton, &QPushButton::clicked, this, &DialogSender::UnSubToNode);
 
     initializeSerialPort();
 }
@@ -161,7 +166,6 @@ void DialogSender::sendAdvertisement()
             "mesh models cfg model sub-add 0x1 0xc000 0x1001\n",
             "mesh models cfg model sub-add 0x1 0xc000 0x1000\n"
         };
-
 
         node.setAddress("0x0001");
         node.setUuid("deadbeaf");
@@ -344,6 +348,7 @@ void DialogSender::turnOffAllLeds()
     m_serial.waitForBytesWritten(100);
     m_serial.waitForReadyRead(50);
 
+    QThread::msleep(100);
     QString Command2 = QString("test net-send 82030000\n");
     m_serial.write(Command2.toUtf8());
     m_serial.waitForBytesWritten(100);
@@ -442,25 +447,30 @@ void DialogSender::handleBeaconResponse()
             m_serial.waitForBytesWritten(100);
             m_serial.waitForReadyRead(50);
 
+            QThread::msleep(100);
             m_serial.write("mesh models cfg appkey add 0 0\n");
             m_serial.waitForBytesWritten(100);
             m_serial.waitForReadyRead(50);
 
+            QThread::msleep(100);
             QString Command2 = QString("mesh models cfg model app-bind %1 0 0x1001\n").arg(uniqueAddress);
             m_serial.write(Command2.toUtf8());
             m_serial.waitForBytesWritten(100);
             m_serial.waitForReadyRead(50);
 
+            QThread::msleep(100);
             QString Command3 = QString("mesh models cfg model app-bind %1 0 0x1000\n").arg(uniqueAddress);
             m_serial.write(Command3.toUtf8());
             m_serial.waitForBytesWritten(100);
             m_serial.waitForReadyRead(50);
 
+            QThread::msleep(100);
             QString Command4 = QString("mesh models cfg model sub-add %1 0xc000 0x1001\n").arg(uniqueAddress);
             m_serial.write(Command4.toUtf8());
             m_serial.waitForBytesWritten(100);
             m_serial.waitForReadyRead(50);
 
+            QThread::msleep(100);
             QString Command5 = QString("mesh models cfg model sub-add %1 0xc000 0x1000\n").arg(uniqueAddress);
             m_serial.write(Command5.toUtf8());
             m_serial.waitForBytesWritten(100);
@@ -502,4 +512,10 @@ void DialogSender::handleBeaconResponse()
 
 
 
+void DialogSender::SubToNode(){
 
+}
+
+void DialogSender::UnSubToNode(){
+
+}
