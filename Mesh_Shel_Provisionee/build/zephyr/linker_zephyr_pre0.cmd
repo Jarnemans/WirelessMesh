@@ -138,7 +138,6 @@ ztest :
  bt_mesh_hb_cb_area : SUBALIGN(4) { _bt_mesh_hb_cb_list_start = .; KEEP(*(SORT_BY_NAME(._bt_mesh_hb_cb.static.*))); _bt_mesh_hb_cb_list_end = .; } > FLASH
  bt_mesh_friend_cb_area : SUBALIGN(4) { _bt_mesh_friend_cb_list_start = .; KEEP(*(SORT_BY_NAME(._bt_mesh_friend_cb.static.*))); _bt_mesh_friend_cb_list_end = .; } > FLASH
  bt_mesh_lpn_cb_area : SUBALIGN(4) { _bt_mesh_lpn_cb_list_start = .; KEEP(*(SORT_BY_NAME(._bt_mesh_lpn_cb.static.*))); _bt_mesh_lpn_cb_list_end = .; } > FLASH
- bt_mesh_proxy_cb_area : SUBALIGN(4) { _bt_mesh_proxy_cb_list_start = .; KEEP(*(SORT_BY_NAME(._bt_mesh_proxy_cb.static.*))); _bt_mesh_proxy_cb_list_end = .; } > FLASH
  log_strings_area : SUBALIGN(4) { _log_strings_list_start = .; KEEP(*(SORT_BY_NAME(._log_strings.static.*))); _log_strings_list_end = .; } > FLASH
  log_const_area : SUBALIGN(4) { _log_const_list_start = .; KEEP(*(SORT_BY_NAME(._log_const.static.*))); _log_const_list_end = .; } > FLASH
  log_backend_area : SUBALIGN(4) { _log_backend_list_start = .; KEEP(*(SORT_BY_NAME(._log_backend.static.*))); _log_backend_list_end = .; } > FLASH

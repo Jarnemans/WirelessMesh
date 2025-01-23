@@ -246,9 +246,6 @@ static void bt_ready(int err)
 
     const struct shell *shell = shell_backend_uart_get_ptr();
     if (shell) {
-        k_sleep(K_MSEC(6000));
-        shell_execute_cmd(shell, "mesh init");
-        k_sleep(K_MSEC(200));
 
         /* -------------------------------------------------------------
          * Check if button is pressed at startup. If so, reset locally.
@@ -263,14 +260,20 @@ static void bt_ready(int err)
         printk("Button pin read: %d\n", val);
 
         if (val == 1) {
+
+            k_sleep(K_MSEC(6000));
+            shell_execute_cmd(shell, "mesh init");
+            k_sleep(K_MSEC(200));
+
             /* If button is pressed at power on, reset local mesh state. */
             shell_execute_cmd(shell, "mesh reset-local");
+
+            k_sleep(K_MSEC(200));
+            shell_execute_cmd(shell, "mesh prov uuid effeeffe");
+            k_sleep(K_MSEC(200));
+            shell_execute_cmd(shell, "mesh prov pb-gatt on");
         }
 
-        k_sleep(K_MSEC(200));
-        shell_execute_cmd(shell, "mesh prov uuid efebeffe");
-        k_sleep(K_MSEC(200));
-        shell_execute_cmd(shell, "mesh prov pb-gatt on");
     } else {
         printk("Shell backend not initialized\n");
     }
