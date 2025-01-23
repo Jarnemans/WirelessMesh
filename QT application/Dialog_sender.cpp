@@ -98,8 +98,34 @@ DialogSender::DialogSender(QWidget *parent) :
     connect(m_addressListWidget, &QListWidget::itemDoubleClicked, this, &DialogSender::onAddressDoubleClicked);
     connect(m_serialPortComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &DialogSender::openSerialPort);
     connect(m_refreshButton, &QPushButton::clicked, this, &DialogSender::onRefreshClicked);
-    connect(m_subButton, &QPushButton::clicked, this, &DialogSender::SubToNode);
-    connect(m_unSubButton, &QPushButton::clicked, this, &DialogSender::UnSubToNode);
+
+    connect(m_addressListWidget, &QListWidget::currentItemChanged, this, [this](QListWidgetItem *current, QListWidgetItem *previous) {
+        Q_UNUSED(previous);
+        m_selectedItem = current;
+        if (current) {
+            m_statusLabel->setText(tr("Selected address: %1").arg(current->text()));
+        } else {
+            m_statusLabel->setText(tr("No address selected."));
+        }
+    });
+
+    connect(m_subButton, &QPushButton::clicked, this, [this]() {
+        if (m_selectedItem) {
+            SubToNode(m_selectedItem);
+        } else {
+            m_statusLabel->setText(tr("No address selected for subscription."));
+        }
+    });
+
+    connect(m_unSubButton, &QPushButton::clicked, this, [this]() {
+        if (m_selectedItem) {
+            UnSubToNode(m_selectedItem);
+        } else {
+            m_statusLabel->setText(tr("No address selected for unsubscription."));
+        }
+    });
+
+
 
     initializeSerialPort();
 }
@@ -151,7 +177,6 @@ void DialogSender::sendAdvertisement()
 
         Node node;
 
-
         QStringList commands = {
             "mesh init\n",
             "mesh reset-local\n",
@@ -176,7 +201,7 @@ void DialogSender::sendAdvertisement()
         for (const QString &command : commands) {
             m_serial.write(command.toUtf8());
             m_serial.waitForBytesWritten(100);
-            QThread::msleep(100);
+            QThread::msleep(150);
         }
 
         m_statusLabel->setText(tr("Status: Mesh commands sent."));
@@ -267,8 +292,6 @@ void DialogSender::readResponse()
 }
 
 
-
-
 void DialogSender::setLedStatus(const QString &address, bool isOn)
 {
     QString status = isOn ? "on" : "off";
@@ -354,7 +377,6 @@ void DialogSender::turnOffAllLeds()
     m_serial.waitForBytesWritten(100);
     m_serial.waitForReadyRead(50);
 
-
     m_statusLabel->setText(tr("Status: All LEDs turned off."));
     qDebug() << "Command sent to turn off all LEDs.";
 }
@@ -396,6 +418,11 @@ void DialogSender::onRefreshClicked()
 
     QTimer::singleShot(200, this, [this]() {
         connect(&m_serial, &QSerialPort::readyRead, this, &DialogSender::handleBeaconResponse, Qt::UniqueConnection);
+    });
+
+    QTimer::singleShot(3000, this, [this]() {
+    m_serial.write("mesh prov beacon-listen off\n");
+    m_serial.waitForBytesWritten(100);
     });
 }
 
@@ -510,12 +537,92 @@ void DialogSender::handleBeaconResponse()
 }
 
 
+void DialogSender::SubToNode(QListWidgetItem *item){
 
+    if (!m_serial.isOpen()) {
+        m_statusLabel->setText(tr("Status: Serial port not open."));
+        return;
+    }
 
-void DialogSender::SubToNode(){
+    QString address = item->text(); // Get the selected address
+    qDebug() << "Selected address:" << address;
+    Node node;
+    node = m_nodeMap[address];
 
+    QString Command1 = QString("mesh target dst %1\n").arg(node.address());
+    m_serial.write(Command1.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+    QThread::msleep(100);
+
+    QThread::msleep(100);
+    QString Command2 = QString("mesh models cfg model app-bind %1 0 0x1001\n").arg(node.address());
+    m_serial.write(Command2.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+
+    QThread::msleep(100);
+    QString Command3 = QString("mesh models cfg model app-bind %1 0 0x1000\n").arg(node.address());
+    m_serial.write(Command3.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+
+    QString Command4 = QString("mesh models cfg model sub-add %1 0 0x1001\n").arg(node.address());
+    m_serial.write(Command4.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+    QThread::msleep(100);
+
+    QString Command5 = QString("mesh models cfg model sub-add %1 0 0x1000\n").arg(node.address());
+    m_serial.write(Command5.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+    QThread::msleep(100);
+
+    qDebug() << "Node subscribed";
 }
 
-void DialogSender::UnSubToNode(){
+void DialogSender::UnSubToNode(QListWidgetItem *item){
 
+    if (!m_serial.isOpen()) {
+        m_statusLabel->setText(tr("Status: Serial port not open."));
+        return;
+    }
+
+    QString address = item->text(); // Get the selected address
+    qDebug() << "Selected address:" << address;
+    Node node;
+    node = m_nodeMap[address];
+
+    QString Command1 = QString("mesh target dst %1\n").arg(node.address());
+    m_serial.write(Command1.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+    QThread::msleep(100);
+
+    QString Command2 = QString("mesh models cfg model sub-del-all %1 0x1001\n").arg(node.address());
+    m_serial.write(Command2.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+    QThread::msleep(100);
+
+    QString Command3 = QString("mesh models cfg model sub-del-all %1 0x1000\n").arg(node.address());
+    m_serial.write(Command3.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+    QThread::msleep(100);
+
+    QString Command4 = QString("mesh models cfg model app-unbind %1 0 0x1001\n").arg(node.address());
+    m_serial.write(Command4.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+    QThread::msleep(100);
+
+    QString Command5 = QString("mesh models cfg model app-unbind %1 0 0x1000\n").arg(node.address());
+    m_serial.write(Command5.toUtf8());
+    m_serial.waitForBytesWritten(100);
+    m_serial.waitForReadyRead(50);
+    QThread::msleep(100);
+
+    qDebug() << "Node unsubscribed";
 }
